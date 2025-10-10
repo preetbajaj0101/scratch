@@ -2,24 +2,43 @@
 
 {% block content %}
 <div class="container py-5">
-    <h1 class="text-center mb-5">Movies</h1>
+    <h1 class="text-center mb-4">Movies</h1>
 
     <div class="row justify-content-center mb-5">
-        <div class="col-md-8">
-            <form method="GET" action="{% url 'movie_list' %}" class="search-bar">
-                <div class="input-group">
-                    <input
-                        class="form-control form-control-lg"
-                        name="search"
-                        placeholder="Search for Movies, Events, Plays, Sports and Activities"
-                        type="text"
-                        value="{{ request.GET.search|default_if_none:'' }}"
-                        aria-label="Search for movies"
-                    />
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search"></i> Search
-                        </button>
+        <div class="col-md-10">
+            <form method="GET" action="{% url 'movie_list' %}" class="card p-3 shadow-sm">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="input-group">
+                            <input class="form-control form-control-lg" name="search" placeholder="Search for Movies..." type="text" value="{{ request.GET.search|default_if_none:'' }}" />
+                            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-2 col-md-4">
+                        <select name="genre" class="form-select form-select-lg">
+                            <option value="">All Genres</option>
+                            {% for genre in genres %}
+                                <option value="{{ genre.id }}" {% if selected_genre_id == genre.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ genre.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 col-md-4">
+                        <select name="language" class="form-select form-select-lg">
+                            <option value="">All Languages</option>
+                            {% for lang in languages %}
+                                <option value="{{ lang.id }}" {% if selected_language_id == lang.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ lang.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 col-md-4 d-grid">
+                        <button class="btn btn-secondary btn-lg" type="submit">Filter</button>
                     </div>
                 </div>
             </form>
@@ -30,41 +49,37 @@
         {% for movie in movies %}
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow-sm">
-                <img src="{{ movie.image.url }}" class="card-img-top" alt="{{ movie.name }}" style="height: 300px; object-fit: cover;">
-                <div class="card-body">
+                <img src="{{ movie.image.url }}" class="card-img-top" alt="{{ movie.name }}" style="height: 450px; object-fit: cover;">
+                <div class="card-body d-flex flex-column">
                     <h5 class="card-title">{{ movie.name }}</h5>
+                    {% if movie.language %}
+                        <p class="card-text"><small class="text-muted">{{ movie.language.name }}</small></p>
+                    {% endif %}
+                    <div class="mt-2 mb-3">
+                        {% for genre in movie.genres.all %}
+                            <span class="badge bg-primary text-light me-1">{{ genre.name }}</span>
+                        {% endfor %}
+                    </div>
                     <p class="card-text">
                         <i class="fas fa-star text-warning"></i> {{ movie.rating }}
                     </p>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            <i class="fas fa-users"></i> Cast: {{ movie.cast }}
-                        </small>
-                    </p>
-                </div>
-                <div class="card-footer bg-white border-top-0">
-                    <a href="{% url 'theater_list' movie.id %}" class="btn btn-outline-primary btn-block">
-                        View Theaters <i class="fas fa-chevron-right ml-2"></i>
-                    </a>
+                    <div class="mt-auto">
+                        <a href="{% url 'theater_list' movie.id %}" class="btn btn-outline-primary w-100">
+                            View Theaters <i class="fas fa-chevron-right ms-2"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
         {% empty %}
         <div class="col-12 text-center">
-            <p class="lead">No movies found. Try a different search term.</p>
+            <p class="lead">No movies found matching your criteria. Try a different filter.</p>
         </div>
         {% endfor %}
     </div>
 </div>
 
-<!-- Bootstrap JS and dependencies -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
-<!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-
 <style>
     .card {
         transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
@@ -74,38 +89,4 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
     }
 </style>
-
-<script>
-    $(document).ready(function() {
-        // Add animation to cards on hover
-        $('.card').hover(
-            function() { $(this).addClass('shadow'); },
-            function() { $(this).removeClass('shadow'); }
-        );
-
-        // Implement client-side filtering
-        $('input[name="search"]').on('input', function() {
-            var searchTerm = $(this).val().toLowerCase();
-            $('#movieList .col-md-4').each(function() {
-                var movieTitle = $(this).find('.card-title').text().toLowerCase();
-                if (movieTitle.includes(searchTerm)) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-    });
-</script>
-<!-- <h1>Movies</h1>
-<ul>
-    {% for movie in movies%}
-    <li>
-        <img src="{{movie.image.url}}" alt="image" >
-        <strong>{{movie.name}}</strong>{{movie.rating}}
-        <p>Cast:{{movie.cast}}</p>
-        <a href="{% url 'theater_list' movie.id %}">View Theaters</a>
-    </li>
-    {% endfor %}
-</ul> -->
 {% endblock %}
