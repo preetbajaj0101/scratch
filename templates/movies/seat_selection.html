@@ -1,13 +1,12 @@
-{% extends "users/basic.html" %} {% block content %}
+{% extends "users/basic.html" %}
+{% block content %}
 <div class="container mt-5">
   <div class="row">
     <div class="col-lg-8 mx-auto">
       <!-- Movie and Theater Info -->
       <div class="card mb-4">
         <div class="card-body">
-          <div
-            class="d-flex justify-content-between align-items-center flex-wrap"
-          >
+          <div class="d-flex justify-content-between align-items-center flex-wrap">
             <div>
               <h4 class="card-title">{{ theaters.movie.name }}</h4>
               <p class="card-text text-muted">
@@ -15,18 +14,10 @@
               </p>
             </div>
             <div class="mt-2 mt-sm-0">
-              <button class="btn btn-outline-primary me-2 mb-2 mb-sm-0">
-                2D
-              </button>
-              <button class="btn btn-outline-primary me-2 mb-2 mb-sm-0">
-                3D
-              </button>
-              <button class="btn btn-outline-primary mb-2 mb-sm-0">
-                IMAX 3D
-              </button>
-              <button class="btn btn-outline-primary mb-2 mb-sm-0">
-                {{seats|length}} Tickets
-              </button>
+              <button class="btn btn-outline-primary me-2 mb-2 mb-sm-0">2D</button>
+              <button class="btn btn-outline-primary me-2 mb-2 mb-sm-0">3D</button>
+              <button class="btn btn-outline-primary mb-2 mb-sm-0">IMAX 3D</button>
+              <button class="btn btn-outline-primary mb-2 mb-sm-0">{{seats|length}} Tickets</button>
             </div>
           </div>
         </div>
@@ -40,23 +31,26 @@
 
           <form method="POST">
             {% csrf_token %}
-            <div class="d-flex justify-content-center flex-wrap mb-4">
-              {% for seat in seats %}
-              <div class="seat {% if seat.is_booked %}sold{% endif %}">
-                {% if not seat.is_booked %}
-                <input
-                  type="checkbox"
-                  name="seats"
-                  value="{{ seat.id }}"
-                  class="d-none"
-                  id="seat-{{ seat.id }}"
-                />
-                <label
-                  for="seat-{{ seat.id }}"
-                  class="w-100 h-100 d-flex align-items-center justify-content-center"
-                  >{{ seat.seat_number }}</label
-                >
-                {% else %} {{ seat.seat_number }} {% endif %}
+            <div class="mb-3 text-center" id="selected-summary" style="display:none;">
+              <strong>Selected (<span id="selected-count">0</span>):</strong>
+              <span id="selected-list"></span>
+            </div>
+            <div class="mb-4">
+              {% for row_letter, row_seats in seats_rows %}
+              <div class="d-flex justify-content-center mb-2 align-items-center">
+                <div class="me-3" style="min-width:30px; text-align:right; font-weight:bold;">{{ row_letter }}</div>
+                <div class="d-flex flex-wrap">
+                  {% for seat in row_seats %}
+                  <div class="seat {% if seat.is_booked %}sold{% endif %}" data-seat-id="{{ seat.id }}" tabindex="0" aria-role="button" aria-pressed="false">
+                    {% if not seat.is_booked %}
+                    <input type="checkbox" name="seats" value="{{ seat.id }}" class="d-none" id="seat-{{ seat.id }}" />
+                    <label for="seat-{{ seat.id }}" class="w-100 h-100 d-flex align-items-center justify-content-center">{{ seat.seat_number }}</label>
+                    {% else %}
+                    {{ seat.seat_number }}
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
               </div>
               {% endfor %}
             </div>
@@ -89,6 +83,7 @@
     </div>
   </div>
 </div>
+
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -103,6 +98,7 @@
     cursor: pointer;
     border-radius: 5px;
     transition: background-color 0.3s, color 0.3s;
+    user-select: none;
   }
   .seat:hover {
     background-color: #28a745;
@@ -115,6 +111,7 @@
   .seat.sold {
     background-color: #ccc;
     cursor: not-allowed;
+    pointer-events: none;
   }
   .screen {
     margin: 20px 0;
@@ -124,47 +121,96 @@
     line-height: 50px;
     color: #666;
   }
-  .footer {
-    background-color: #333;
-    color: #ccc;
-    padding: 20px 0;
-  }
-  .footer a {
-    color: #ccc;
-    text-decoration: none;
-  }
-  .footer a:hover {
-    text-decoration: underline;
-  }
-  .footer .col-md-2,
-  .footer .col-md-3 {
-    margin-bottom: 20px;
-  }
-  .footer .social-icons i {
-    font-size: 20px;
-    margin: 0 10px;
-  }
 </style>
-<!-- <h1>Seats for {{theater.name}} - {{theater.movie.name}}</h1>
-{% if error %}
-<p style="color:red;">{{error}}</p>
-{% endif %}
-<form method="POST">
-    {% csrf_token %}
-    <ul>
-        {% for seat in seats %}
-        <li>
-          Seats{{seat.seat_number}}:
-          {% if seat.is_booked %}
-          <strong>Booked seat {{seat.seat_number}}</strong>
-          {% else %}
-          <input type="checkbox" name="seats" value="{{seat.id}}">
-          <strong>Available seat {{seat.seat_number}}</strong>
-          {% endif%}
-        </li>
-        {% endfor %}
-      </ul>
-      <button type="submit">Book selected seats</button>
-</form> -->
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.querySelector('form');
+  if (!form) return;
+
+  const seats = Array.from(document.querySelectorAll('.seat:not(.sold)'));
+  const submitBtn = form.querySelector('button[type="submit"]');
+  let isMouseDown = false;
+  let selectingMode = null; // 'select' or 'deselect'
+
+  // ---- Helper function to update summary ----
+  function updateSelectedSummary() {
+    const checkedEls = form.querySelectorAll('input[name="seats"]:checked');
+    const count = checkedEls.length;
+    const summary = document.getElementById('selected-summary');
+    const list = document.getElementById('selected-list');
+    const counter = document.getElementById('selected-count');
+    if (count > 0) {
+      summary.style.display = 'block';
+      submitBtn.disabled = false;
+      counter.textContent = count;
+      const labels = Array.from(checkedEls).map(chk => chk.closest('.seat').querySelector('label').textContent.trim());
+      list.textContent = labels.join(', ');
+    } else {
+      summary.style.display = 'none';
+      submitBtn.disabled = true;
+      counter.textContent = '0';
+      list.textContent = '';
+    }
+  }
+
+  // ---- Single seat click ----
+  seats.forEach(seat => {
+    seat.addEventListener('click', e => {
+      const chk = seat.querySelector('input');
+      if (!chk) return;
+      chk.checked = !chk.checked;
+      seat.classList.toggle('selected', chk.checked);
+      updateSelectedSummary();
+    });
+  });
+
+  // ---- Multi-select via dragging ----
+  document.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('seat') && !e.target.classList.contains('sold')) {
+      isMouseDown = true;
+      const chk = e.target.querySelector('input');
+      if (chk) {
+        selectingMode = chk.checked ? 'deselect' : 'select';
+        chk.checked = selectingMode === 'select';
+        e.target.classList.toggle('selected', chk.checked);
+        updateSelectedSummary();
+      }
+    }
+  });
+
+  document.addEventListener('mouseover', e => {
+    if (isMouseDown && e.target.classList.contains('seat') && !e.target.classList.contains('sold')) {
+      const chk = e.target.querySelector('input');
+      if (chk) {
+        chk.checked = selectingMode === 'select';
+        e.target.classList.toggle('selected', chk.checked);
+        updateSelectedSummary();
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isMouseDown = false;
+    selectingMode = null;
+  });
+
+  // Prevent text selection during drag
+  document.addEventListener('dragstart', e => e.preventDefault());
+  document.addEventListener('selectstart', e => {
+    if (isMouseDown) e.preventDefault();
+  });
+
+  // ---- Form validation ----
+  form.addEventListener('submit', function (e) {
+    const checked = form.querySelectorAll('input[name="seats"]:checked').length;
+    if (checked < 1) {
+      e.preventDefault();
+      alert('Please select at least one seat to book.');
+    }
+  });
+
+  updateSelectedSummary();
+});
+</script>
 {% endblock %}

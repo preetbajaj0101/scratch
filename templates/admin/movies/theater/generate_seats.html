@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+  <p>{% trans "The following theaters will be updated:" %}</p>
+  <ul>
+    {% for t in theaters %}
+      <li>{{ t }}</li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" style="margin-top: 1em;">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    {# Preserve selected objects so the admin can rebuild the queryset on the second POST #}
+    {% for t in theaters %}
+      <input type="hidden" name="_selected_action" value="{{ t.pk }}">
+    {% endfor %}
+    <button type="submit" name="apply" class="default">{% trans "Apply" %}</button>
+    <a class="button" href="..">{% trans "Cancel" %}</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="default">{% trans "Generate" %}</button>
+    <a href="../" class="button">{% trans "Back" %}</a>
+  </form>
+{% endblock %}

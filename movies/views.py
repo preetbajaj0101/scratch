@@ -47,12 +47,40 @@ def theater_list(request, movie_id):
 @login_required(login_url='/login/')
 def book_seats(request, theater_id):
     theaters = get_object_or_404(Theater, id=theater_id)
-    seats = Seat.objects.filter(theater=theaters)
+    # Get seats and arrange them in alphanumeric order (row letters, then column numbers)
+    seats_qs = Seat.objects.filter(theater=theaters)
+    # Sort in Python to keep it DB-agnostic and to support labels like A1, B10, etc.
+    def seat_key(seat):
+        sn = seat.seat_number or ''
+        letters = ''.join([ch for ch in sn if ch.isalpha()])
+        nums = ''.join([ch for ch in sn if ch.isdigit()])
+        try:
+            num_val = int(nums) if nums else 0
+        except ValueError:
+            num_val = 0
+        return (letters, num_val)
+
+    try:
+        seats_sorted = sorted(seats_qs, key=seat_key)
+        # Group by row letters
+        from itertools import groupby
+        seats_rows = []
+        for row_letter, group in groupby(seats_sorted, key=lambda s: ''.join([ch for ch in (s.seat_number or '') if ch.isalpha()])):
+            seats_rows.append((row_letter, list(group)))
+        # Reverse rows so Z appears first and A last (presentation order)
+        seats_rows.reverse()
+    except Exception as e:
+        # Defensive fallback: if labels are malformed or unexpected, don't crash the page.
+        # Log to console (server terminal) and present a flat list to the template.
+        import sys
+        print('Error while sorting/grouping seats:', e, file=sys.stderr)
+        seats_sorted = list(seats_qs)
+        seats_rows = [('', seats_sorted)]
     if request.method == 'POST':
         selected_Seats = request.POST.getlist('seats')
         error_seats = []
         if not selected_Seats:
-            return render(request, "movies/seat_selection.html", {'theaters': theaters, "seats": seats, 'error': "No seat selected"})
+            return render(request, "movies/seat_selection.html", {'theaters': theaters, "seats": seats_qs, 'seats_rows': seats_rows, 'error': "No seat selected"})
         for seat_id in selected_Seats:
             seat = get_object_or_404(Seat, id=seat_id, theater=theaters)
             if seat.is_booked:
@@ -71,6 +99,6 @@ def book_seats(request, theater_id):
                 error_seats.append(seat.seat_number)
         if error_seats:
             error_message = f"The following seats are already booked:{','.join(error_seats)}"
-            return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats, 'error': error_message})
+            return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats_qs, 'seats_rows': seats_rows, 'error': error_message})
         return redirect('profile')
-    return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats})
+    return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats_qs, 'seats_rows': seats_rows})
