@@ -1,0 +1,13 @@
+Hello {{ user.get_full_name|default:user.username }},
+
+Thank you for your booking!
+
+Movie: {{ movie.name }}
+Theater: {{ theater.name }}
+Time: {{ theater.time }}
+Seats: {% for s in seats %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+Enjoy the show!
+
+Best,
+BookMySeat Team

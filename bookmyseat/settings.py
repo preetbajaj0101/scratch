@@ -53,7 +53,15 @@ MIDDLEWARE = [
 ]
 
 AUTH_USER_MODEL='auth.User'
-EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend'
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'preetbajaj576@gmail.com'       # Replace with your Gmail
+EMAIL_HOST_PASSWORD = 'ycca vwiz dmtf wwbq'     # Use Gmail App Password, not your main password
+DEFAULT_FROM_EMAIL = 'Your App Name <preetbajaj576@gmail.com>'
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

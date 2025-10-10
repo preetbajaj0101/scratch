@@ -1,6 +1,10 @@
 # movies/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+from utils.email_utils import send_booking_confirmation_email
 from .models import Movie, Theater, Seat, Booking, Genre, Language
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
@@ -100,5 +104,30 @@ def book_seats(request, theater_id):
         if error_seats:
             error_message = f"The following seats are already booked:{','.join(error_seats)}"
             return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats_qs, 'seats_rows': seats_rows, 'error': error_message})
+        # All selected seats successfully booked. Send a confirmation email.
+        # Collect only the seat labels that were just booked in this request (selected_Seats)
+        created_seats = []
+        for seat_id in selected_Seats:
+            try:
+                s = Seat.objects.get(id=seat_id)
+                created_seats.append(s.seat_number)
+            except Seat.DoesNotExist:
+                pass
+        # Build email context
+        email_context = {
+            'user': request.user,
+            'movie': theaters.movie,
+            'theater': theaters,
+            'seats': created_seats,
+        }
+
+        # Send booking confirmation email via utility
+        try:
+            send_booking_confirmation_email(request.user, theaters.movie, theaters, created_seats)
+        except Exception as e:
+            import sys
+            print('Error sending booking confirmation email:', e, file=sys.stderr)
+
         return redirect('profile')
     return render(request, 'movies/seat_selection.html', {'theaters': theaters, "seats": seats_qs, 'seats_rows': seats_rows})
+# End of file
